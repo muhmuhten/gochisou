@@ -1,0 +1,29 @@
+=head1 gochisou - Yet Another 3DSFE Save Decompressor
+
+L<FEAST|https://github.com/SciresM/FEAST> except it actually works for JPN
+Awakening (which has different framing from international Awakening and
+subsequent titles mostly because some text fields had to be expanded to allow
+for longer names and chapter titles).
+
+(Translator's note: gochisou means feast)
+
+(Except the interface is more like L<FEST|https://github.com/RainThunder/FEST>,
+but then what am I going to name it, "matsuri"?)
+
+=head2 why this
+
+It'll also compile and run on non-Windows systems. That could be useful too.
+
+=head2 Caveats
+
+Compression doesn't actually work. The Huffman encoder is currently guaranteed
+to make the data bigger; it just byteswaps the input and prepends a full table
+that maps every 8 bits to itself. This decodes correctly, but there's no reason
+to do this because the files can be loaded without compression anyway.
+
+This is a direct result of the Huffman codec being a from-scratch rewrite with
+no code from L<CUE's compressors|http://www.romhacking.net/utilities/826/>.
+
+To the extent that gochisou is written to the data structures it reads, it is
+probably not a derivative of the aforementioned programs. It's not a clean-room
+reimplementation since I only have one brain, though.
