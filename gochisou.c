@@ -5,12 +5,12 @@
 #include <string.h>
 #include <sys/stat.h>
 
-char *slurpfile(size_t *outlen, FILE *fp, size_t limit) {
+char *slurpfile(size_t *outlen, FILE *fp) {
 	char *buf = 0;
 	size_t bufsize = 0;
 
 	struct stat st;
-	if (fstat(fileno(fp), &st) == 0 && st.st_size <= limit) {
+	if (fstat(fileno(fp), &st) == 0) {
 		buf = realloc(0, st.st_size+1);
 		if (buf) {
 			*outlen = fread(buf, 1, st.st_size+1, fp);
@@ -20,13 +20,21 @@ char *slurpfile(size_t *outlen, FILE *fp, size_t limit) {
 		}
 	}
 
-	/* let's be honest here, we all have mmus */
-	char *newbuf = realloc(buf, limit);
-	if (newbuf == 0)
-		err(2, "realloc");
-	bufsize += fread(newbuf+bufsize, 1, limit-bufsize, fp);
-	*outlen = bufsize;
-	return newbuf;
+	for (;;) {
+		bufsize *= 2;
+		if (bufsize < 4096)
+			bufsize = 4096;
+
+		char *newbuf = realloc(buf, bufsize);
+		if (newbuf == 0)
+			err(2, "realloc");
+		buf = newbuf;
+
+		*outlen += fread(buf+bufsize, 1, bufsize-*outlen, fp);
+
+		if (*outlen < bufsize)
+			return newbuf;
+	}
 }
 
 /* Reflected crc32 poly edb88320 */
@@ -178,7 +186,7 @@ int main(int argc, char **argv) {
 		size_t namelen = strlen(argv[j]);
 
 		size_t buflen;
-		char *buf = slurpfile(&buflen, src, 0x1000204);
+		char *buf = slurpfile(&buflen, src);
 
 		char *sect = 0;
 		int enc = 0;
