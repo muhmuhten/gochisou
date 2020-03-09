@@ -48,94 +48,216 @@ uint32_t crc32(uint32_t reg, char *s, size_t len) {
 	return reg;
 }
 
-static const char stupid_huff_tree[] =
-"\xff\x00\x00\x01\x01\x02\x02\x03\x03\x04\x04\x05\x05\x06\x06\x07"
-"\x07\x08\x08\x09\x09\x0a\x0a\x0b\x2b\x2c\x2c\x2d\x2d\x2e\x2e\x2f"
-"\x07\x08\x08\x09\x09\x0a\x0a\x0b\x1b\x1c\x1c\x1d\x1d\x1e\x1e\x1f"
-"\x07\x08\x08\x09\x09\x0a\x0a\x0b\x0b\x0c\x0c\x0d\x0d\x0e\x0e\x0f"
-"\xdf\xe0\xe0\xe1\xe1\xe2\xe2\xe3\xe3\xe4\xe4\xe5\xe5\xe6\xe6\xe7"
-"\xe7\xe8\xe8\xe9\xe9\xea\xea\xeb\xeb\xec\xec\xed\xed\xee\xee\xef"
-"\x2f\x30\x30\x31\x31\x32\x32\x33\x33\x34\x34\x35\x35\x36\x36\x37"
-"\x37\x38\x38\x39\x39\x3a\x3a\x3b\x3b\x3c\x3c\x3d\x3d\x3e\x3e\x3f"
-"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
-"\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f"
-"\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\x3e\x3f"
-"\xdf\xe0\xe0\xe1\xe1\xe2\xe2\xe3\xe3\xe4\xe4\xe5\xe5\xe6\xe6\xe7"
-"\xe7\xe8\xe8\xe9\xe9\xea\xea\xeb\xeb\xec\xec\xed\xed\xee\xee\xef"
-"\x2f\x30\x30\x31\x31\x32\x32\x33\x33\x34\x34\x35\x35\x36\x36\x37"
-"\x37\x38\x38\x39\x39\x3a\x3a\x3b\x3b\x3c\x3c\x3d\x3d\x3e\x3e\x3f"
-"\x40\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f"
-"\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a\x5b\x5c\x5d\x5e\x5f"
-"\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f"
-"\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7a\x7b\x7c\x7d\x7e\x7f"
-"\xdf\xe0\xe0\xe1\xe1\xe2\xe2\xe3\xe3\xe4\xe4\xe5\xe5\xe6\xe6\xe7"
-"\xe7\xe8\xe8\xe9\xe9\xea\xea\xeb\xeb\xec\xec\xed\xed\xee\xee\xef"
-"\xef\xf0\xf0\xf1\xf1\xf2\xf2\xf3\xf3\xf4\xf4\xf5\xf5\xf6\xf6\xf7"
-"\xf7\xf8\xf8\xf9\xf9\xfa\xfa\xfb\xfb\xfc\xfc\xfd\xfd\xfe\xfe\xff"
-"\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f"
-"\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f"
-"\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf"
-"\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf"
-"\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf"
-"\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf"
-"\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef"
-"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff";
-
-/* Included only for the sake of completeness; it doesn't compress! This isn't
- * very useful since the games can handle uncompressed save files just fine. */
-char *huff_encode(size_t *outlen, char *src, size_t srclen) {
+char *huff_encode(size_t *outlen, char *ssrc, size_t srclen) {
+	uint8_t *src = (uint8_t *)ssrc;
 	if (srclen >= 0x1000000)
 		errx(1, "too big to huf");
-	*outlen = (srclen-1|3)+517;
-	char *buf = realloc(0, *outlen);
-	if (buf == 0)
-		err(2, "realloc");
 
-	buf[0] = 0x28;
-	buf[1] = srclen; 
-	buf[2] = srclen >> 8; 
-	buf[3] = srclen >> 16;
-	memmove(buf+4, stupid_huff_tree, 512);
+	uint32_t freqs[256] = {0};
+	for (int32_t j = 0; j < srclen; j++)
+		freqs[src[j]]++;
 
-	for (size_t j = 0; j <= (srclen-1|3); j++) {
-		if (516+(j|3)-(j&3) >= *outlen)
-			errx(3, "impossible");
-		buf[516+(j|3)-(j&3)] = j < srclen ? src[j] : 0;
+	struct qnode {
+		uint32_t freq;
+		uint8_t leaf;
+		uint8_t data;
+	} queue[257] = {{0}};
+	int16_t qlen = 0;
+	for (int16_t j = 255; j >= 0; j--) {
+		if (freqs[j]) {
+			queue[qlen].freq = freqs[j];
+			queue[qlen].leaf = 1;
+			queue[qlen].data = j;
+			qlen++;
+		}
+	}
+	if (qlen == 1) {
+		queue[qlen].freq = 0;
+		queue[qlen].leaf = 1;
+		queue[qlen].data = ~queue[0].data;
+		qlen++;
 	}
 
-	return buf;
+	struct tnode {
+		uint8_t flags;
+		uint8_t x0;
+		uint8_t x1;
+	} stems[256] = {{0}};
+	int16_t tlen = 0;
+	size_t encbits = 0;
+	for (int16_t j = qlen; j > 1; j--) {
+		for (int16_t k = 1; k < qlen; k++) {
+			int16_t n = k;
+			while (n >= 1 && queue[n-1].freq > queue[k].freq)
+				n--;
+			if (n != k) {
+				memmove(queue+256, queue+k, sizeof queue[0]);
+				memmove(queue+n+1, queue+n, (k-n)*sizeof queue[0]);
+				memmove(queue+n, queue+256, sizeof queue[0]);
+			}
+		}
+
+		int32_t freq = queue[0].freq + queue[1].freq;
+		encbits += freq;
+		queue[qlen].freq = freq;
+		queue[qlen].leaf = 0;
+		queue[qlen].data = tlen;
+		stems[tlen].flags = queue[0].leaf + 2*queue[1].leaf;
+		stems[tlen].x0 = queue[1].data;
+		stems[tlen].x1 = queue[0].data;
+		tlen++;
+		qlen--;
+		memmove(queue, queue+2, qlen*sizeof queue[0]);
+	}
+	stems[tlen].flags = 2;
+	stems[tlen].x0 = tlen;
+	stems[tlen].x1 = tlen-1;
+	tlen++;
+
+	*outlen = 4 + 2*tlen + ((((encbits-1)|31)+1)>>3);
+	//uint8_t *outbuf = realloc(0, *outlen);
+	warnx("%zu", *outlen);
+	uint8_t *outbuf = calloc(1, *outlen);
+	if (outbuf == 0)
+		err(2, "realloc");
+	outbuf[0] = 0x28;
+	outbuf[1] = srclen;
+	outbuf[2] = srclen >> 8;
+	outbuf[3] = srclen >> 16;
+
+	uint8_t place[256] = {0};
+	for (int16_t j = tlen-1; j >= 0; j--) {
+		uint8_t m = 0;
+		for (int16_t k = 0; k < tlen; k++) {
+			if (place[k])
+				continue;
+
+			struct tnode *s = stems+k;
+			if ((!(s->flags & 2) && place[s->x0] >= j+64) || (!(s->flags & 1) && place[s->x1] >= j+64)) {
+				m = k;
+				break;
+			}
+
+			if (m == 0 && s->flags == 0 && (place[s->x0] || place[s->x1])) {
+				uint8_t Q[256], L=0, R=0;
+				Q[R++] = k;
+				while (L < R) {
+					struct tnode *w = stems+Q[L++];
+					if (!(w->flags & 2) && !place[w->x0])
+						Q[R++] = w->x0;
+					if (!(w->flags & 1) && !place[w->x1])
+						Q[R++] = w->x1;
+				}
+				if (R > 1)
+					m = Q[R-1];
+			}
+		}
+		while (place[m])
+			m++;
+
+
+		struct tnode *t = stems+m;
+		if (t->flags & 2)
+			outbuf[4+2*j+0] = t->x0;
+		else if (place[t->x0] <= j+64)
+			outbuf[4+2*j+0] = stems[t->x0].flags << 6 | (place[t->x0]-j-1);
+		else errx(3, "oops %d %d %d", t->x0, place[t->x0], j);
+
+		if (t->flags & 1)
+			outbuf[4+2*j+1] = t->x1;
+		else if (place[t->x1] <= j+64)
+			outbuf[4+2*j+1] = stems[t->x1].flags << 6 | (place[t->x1]-j-1);
+		else errx(4, "oops %d %d %d", t->x1, place[t->x1], j);
+
+		place[m] = j;
+	}
+
+	uint32_t lookup[256] = {0};
+	if (tlen > 1) {
+		struct lstack {
+			uint8_t n, w;
+			uint32_t b;
+		} lstack[256] = {{tlen-2, 0, 0}};
+		int16_t slen = 1;
+		while (slen > 0) {
+			struct tnode *s = stems + lstack[slen-1].n;
+			lstack[slen-1].w++;
+			lstack[slen-1].b <<= 1;
+			if (s->flags == 0) {
+				lstack[slen-1].n = s->x0;
+				lstack[slen].n = s->x1;
+				lstack[slen].w = lstack[slen-1].w;
+				lstack[slen].b = lstack[slen-1].b+1;
+				slen++;
+			}
+			else if (s->flags == 1) {
+				lookup[s->x1] = lstack[slen-1].w | lstack[slen-1].b << 5 | 1 << 5;
+				lstack[slen-1].n = s->x0;
+			}
+			else if (s->flags == 2) {
+				lookup[s->x0] = lstack[slen-1].w | lstack[slen-1].b << 5;
+				lstack[slen-1].n = s->x1;
+				lstack[slen-1].b++;
+			}
+			else if (s->flags == 3) {
+				lookup[s->x0] = lstack[slen-1].w | lstack[slen-1].b << 5;
+				lookup[s->x1] = lstack[slen-1].w | lstack[slen-1].b << 5 | 1 << 5;
+				slen--;
+			}
+		}
+	}
+
+	uint32_t word = 0;
+	int8_t bits = 32;
+	size_t dp = 4 + 2*tlen;
+	for (size_t sp = 0; sp < srclen; sp++) {
+		uint8_t ch = src[sp];
+		bits -= lookup[ch] & 31;
+		if (bits < 0) {
+			word |= lookup[ch] >> (5-bits);
+			outbuf[dp++] = word;
+			outbuf[dp++] = word >> 8;
+			outbuf[dp++] = word >> 16;
+			outbuf[dp++] = word >> 24;
+			bits += 32;
+			word = 0;
+		}
+		word |= (lookup[ch] >> 5) << bits;
+	}
+	outbuf[dp++] = word;
+	outbuf[dp++] = word >> 8;
+	outbuf[dp++] = word >> 16;
+	outbuf[dp++] = word >> 24;
+
+	return (char *)outbuf;
 }
 
 char *huff_decode(size_t *outlen, char *ssrc, size_t srclen) {
 	uint8_t *src = (uint8_t *)ssrc;
 	if (srclen <= 6 || srclen <= 6 + 2*src[4])
 		errx(1, "huf buf insuf");
-	uint8_t *srcend = src + srclen;
-
 	if (src[0] != 0x28)
 		errx(1, "not huffman mode 28");
 
 	*outlen = src[1] | src[2] << 8 | src[3] << 16;
-	char *buf = realloc(0, *outlen);
-	if (buf == 0)
+	char *outbuf = realloc(0, *outlen);
+	if (outbuf == 0)
 		err(2, "realloc");
 
 	uint8_t *tree = src+4;
 	uint8_t entry = tree[1];
 	uint8_t pos = 0;
 
-	char *bufend = buf + *outlen;
-	char *dp = buf;
-	for (uint8_t *sp = src + 6 + 2*src[4]; sp < srcend; sp += 4) {
-		for (uint8_t *dq = sp+3; dq >= sp; dq--) {
-			for (int k = 128; k > 0; k >>= 1) {
+	size_t dp = 0;
+	for (size_t sp = 6 + 2*src[4]; sp < srclen; sp += 4) {
+		for (size_t sq = sp+3; sq >= sp; sq--) {
+			for (uint8_t k = 128; k > 0; k >>= 1) {
 				pos += (entry & 0x3f) + 1;
 				if (pos > tree[0])
 					errx(1, "pos out of tree");
 
 				int isleaf;
-				if (*dq & k) {
+				if (src[sq] & k) {
 					isleaf = entry & 0x40;
 					entry = tree[2*pos+1];
 				}
@@ -145,11 +267,11 @@ char *huff_decode(size_t *outlen, char *ssrc, size_t srclen) {
 				}
 
 				if (isleaf) {
-					*dp++ = entry;
-					if (dp >= bufend) {
-						if (srcend-sp != 4)
-							warnx("%td trailing bytes", srcend-sp);
-						return buf;
+					outbuf[dp++] = entry;
+					if (dp >= *outlen) {
+						if (srclen-sp != 4)
+							warnx("%td trailing bytes", srclen-sp);
+						return outbuf;
 					}
 					entry = tree[1];
 					pos = 0;
@@ -158,9 +280,9 @@ char *huff_decode(size_t *outlen, char *ssrc, size_t srclen) {
 		}
 	}
 
-	warnx("huf buf not enough");
-	*outlen = dp-buf;
-	return buf;
+	warnx("huf buf not enough, missing %zu bytes", *outlen-dp);
+	*outlen = dp;
+	return outbuf;
 }
 
 static uint32_t little32(char *p) {
