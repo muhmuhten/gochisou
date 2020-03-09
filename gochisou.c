@@ -30,7 +30,7 @@ char *slurpfile(size_t *outlen, FILE *fp) {
 			err(2, "realloc");
 		buf = newbuf;
 
-		*outlen += fread(buf+bufsize, 1, bufsize-*outlen, fp);
+		*outlen += fread(buf+*outlen, 1, bufsize-*outlen, fp);
 
 		if (*outlen < bufsize)
 			return newbuf;
