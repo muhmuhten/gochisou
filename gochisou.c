@@ -115,9 +115,7 @@ char *huff_encode(size_t *outlen, char *ssrc, size_t srclen) {
 	tlen++;
 
 	*outlen = 4 + 2*tlen + ((((encbits-1)|31)+1)>>3);
-	//uint8_t *outbuf = realloc(0, *outlen);
-	warnx("%zu", *outlen);
-	uint8_t *outbuf = calloc(1, *outlen);
+	uint8_t *outbuf = realloc(0, *outlen);
 	if (outbuf == 0)
 		err(2, "realloc");
 	outbuf[0] = 0x28;
@@ -300,6 +298,12 @@ int main(int argc, char **argv) {
 			j += 2;
 			if (j >= argc)
 				break;
+		}
+		else if (strcmp(argv[j], "-") == 0) {
+			outname = strdup("/dev/stdout");
+			if (outname == 0)
+				err(2, "strdup");
+			argv[j] = "/dev/stdin";
 		}
 
 		FILE *src = fopen(argv[j], "rb");
